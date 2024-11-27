@@ -1,50 +1,78 @@
 #include "Place.h"
-#include <algorithm>
 
-Place::Place(std::string placeName, const std::vector<std::pair<double, double>>& busyHours, double rti, double aar)
-    : name(std::move(placeName)), busyHours(busyHours), rti(rti), aar(aar), currentTemperature(rti) {
+// Constructor
+Place::Place(const std::string &n, double initTemp, double aar)
+    : name(n), currentRoomTemp(initTemp),
+      ambientRoomRate(aar),
+      comfortTempSetpoint(22.0),
+      lowerComfortLimit(20.0),
+      upperComfortLimit(24.0) {}
+
+// Add a FanCoil to the place
+void Place::addFanCoil(FanCoil *fanCoil) {
+    fanCoils.push_back(fanCoil);
 }
 
-bool Place::isBusy(double time) const {
-    return std::any_of(busyHours.begin(), busyHours.end(), [time](const auto& range) {
-        return time >= range.first && time <= range.second;
-    });
+// Set the occupancy schedule
+void Place::setOccupancySchedule(const std::vector<int> &schedule) {
+    occupancySchedule = schedule;
 }
 
-double Place::getConsumption() {
-    double totalConsumption = 0;
+// Update the room temperature based on various parameters
+void Place::updateTemperature(double ambientTemp, double chilledWaterTemp, int hour) {
+    double deltaT = ambientTemp - currentRoomTemp;
+    double RToff = currentRoomTemp + ambientRoomRate * deltaT;
 
-    for (const auto& fcu : fcus) {
-        totalConsumption += fcu->getConsumption();
+    if (occupancySchedule[hour] == 1) {
+        // Occupied
+        if (currentRoomTemp > comfortTempSetpoint + 0.5) {
+            // Need cooling
+            for (auto fanCoil : fanCoils) {
+                fanCoil->turnOn();
+                double deltaT_fc = RToff - chilledWaterTemp;
+                currentRoomTemp = RToff - fanCoil->getTTC() * deltaT_fc;
+                // Prevent overcooling
+                if (currentRoomTemp < comfortTempSetpoint) {
+                    currentRoomTemp = comfortTempSetpoint;
+                }
+            }
+        } else if (currentRoomTemp < comfortTempSetpoint - 0.5) {
+            // Too cold, fan coils should be OFF
+            for (auto fanCoil : fanCoils) {
+                fanCoil->turnOff();
+            }
+            currentRoomTemp = RToff;
+            // Prevent temperature from dropping below lower comfort limit
+            if (currentRoomTemp < lowerComfortLimit) {
+                currentRoomTemp = lowerComfortLimit;
+            }
+        } else {
+            // Within comfort range, fan coils OFF
+            for (auto fanCoil : fanCoils) {
+                fanCoil->turnOff();
+            }
+            currentRoomTemp = RToff;
+        }
+    } else {
+        // Unoccupied, fan coils OFF
+        for (auto fanCoil : fanCoils) {
+            fanCoil->turnOff();
+        }
+        currentRoomTemp = RToff;
     }
-
-    return totalConsumption;
 }
 
-void Place::addFCU(std::unique_ptr<FCU> fcu) {
-    fcus.push_back(std::move(fcu));
+// Getter for the current temperature
+double Place::getTemperature() const {
+    return currentRoomTemp;
 }
 
-void Place::updateRoomTemperature(double outdoorTemperature, double deltaTime) {
-    double temperatureDelta = currentTemperature - outdoorTemperature;
-    currentTemperature = rti + aar * temperatureDelta * deltaTime;
+// Getter for the name of the place
+const std::string &Place::getName() const {
+    return name;
 }
 
-// AulasOne Implementation
-AulasOne::AulasOne()
-    : Place("Aulas One", {{10.00, 19.00}}, 16.00, 0.7) {
-    addFCU(std::make_unique<AulasOneFCU>());
-    addFCU(std::make_unique<AulasOneFCU>());
-}
-
-// AulasTwo Implementation
-AulasTwo::AulasTwo()
-    : Place("Aulas Two", {{7.00, 22.00}}, 16.00, 0.7) {
-    addFCU(std::make_unique<AulasTwoFCU>());
-}
-
-// BiblioTec Implementation
-BiblioTec::BiblioTec()
-    : Place("Bibliotec", {{7.00, 13.00}, {15.00, 21.00}}, 16.00, 0.9) {
-    addFCU(std::make_unique<BiblioTecFCU>());
+// Getter for the list of FanCoils
+const std::vector<FanCoil *> &Place::getFanCoils() const {
+    return fanCoils;
 }

@@ -1,53 +1,39 @@
 #ifndef PLACE_H
 #define PLACE_H
 
-#include <vector>
 #include <string>
-#include <memory>
-#include <cmath>
-#include "../FCU/Fcu.h"
+#include <vector>
+#include "../Actuator/Actuator.h"
 
-class Place : public ConsumptionManager {
+class Place {
 protected:
     std::string name;
-    std::vector<std::unique_ptr<FCU>> fcus;
-    std::vector<std::pair<double, double>> busyHours;
-    double rti;  // Initial room temperature
-    double aar;  // Ambient-Room rate
-    double currentTemperature;
+    double currentRoomTemp;
+    double ambientRoomRate; // AAR
+    std::vector<FanCoil *> fanCoils;
+    std::vector<int> occupancySchedule; // 24-hour schedule
+
+    // Comfort temperature setpoints
+    double comfortTempSetpoint;
+    double lowerComfortLimit;
+    double upperComfortLimit;
 
 public:
-    Place(std::string placeName, const std::vector<std::pair<double, double>>& busyHours, double rti, double aar);
+    Place(const std::string &n, double initTemp, double aar);
 
-    ~Place() override = default;
+    ~Place() = default;
 
-    [[nodiscard]] bool isBusy(double time) const;
+    void addFanCoil(FanCoil *fanCoil);
 
-    void addFCU(std::unique_ptr<FCU> fcu);
+    void setOccupancySchedule(const std::vector<int> &schedule);
 
-    [[nodiscard]] const std::string& getName() const { return name; }
-    [[nodiscard]] double getRTI() const { return rti; }
-    [[nodiscard]] double getAAR() const { return aar; }
+    void updateTemperature(double ambientTemp, double chilledWaterTemp, int hour);
 
-    [[nodiscard]] double getConsumption() override;
+    double getTemperature() const;
 
-    // Update room temperature based on ambient conditions
-    void updateRoomTemperature(double outdoorTemperature, double deltaTime);
-};
+    const std::string &getName() const;
 
-class AulasOne : public Place {
-public:
-    AulasOne();
-};
-
-class AulasTwo : public Place {
-public:
-    AulasTwo();
-};
-
-class BiblioTec : public Place {
-public:
-    BiblioTec();
+    const std::vector<FanCoil *> &getFanCoils() const;
 };
 
 #endif // PLACE_H

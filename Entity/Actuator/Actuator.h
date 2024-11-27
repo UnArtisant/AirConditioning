@@ -1,29 +1,39 @@
-//
-// Created by Raphael Barriet on 22/11/2024.
-//
-
 #ifndef ACTUATOR_H
 #define ACTUATOR_H
 
-
 class Actuator {
 protected:
-    bool is_active;
-    double power_consumption;
+    bool state; // ON = true, OFF = false
+    double powerConsumptionPerHour;
+    int operationalCycles;
+    double temperatureTransferCoefficient;
 
 public:
-    explicit Actuator(double c_power_consumption);
-
+    Actuator(double power, double ttc);
     virtual ~Actuator() = default;
 
-    virtual void deactivate();
+    virtual void turnOn();
+    virtual void turnOff();
 
-    virtual void activate();
-
-    [[nodiscard]] bool isActive() const;
-
-    [[nodiscard]] double getConsumption() const { return power_consumption; }
+    bool isOn() const;
+    double getPowerConsumption() const;
+    int getOperationalCycles() const;
+    double getTTC() const;
 };
 
+class FanCoil : public Actuator {
+public:
+    FanCoil(double power, double ttc);
+};
 
-#endif //ACTUATOR_H
+class Chiller : public Actuator {
+public:
+    Chiller(double power, double ttc);
+};
+
+class CoolingTower : public Actuator {
+public:
+    CoolingTower(double power, double ttc);
+};
+
+#endif // ACTUATOR_H

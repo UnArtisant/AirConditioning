@@ -1,21 +1,46 @@
-//
-// Created by Raphael Barriet on 22/11/2024.
-//
-
 #include "Actuator.h"
 
-Actuator::Actuator(double c_power_consumption): is_active(false), power_consumption(c_power_consumption) {
+// Actuator class implementation
+Actuator::Actuator(double power, double ttc)
+    : state(false), powerConsumptionPerHour(power),
+      operationalCycles(0), temperatureTransferCoefficient(ttc) {}
+
+void Actuator::turnOn() {
+    if (!state) {
+        state = true;
+        operationalCycles++;
+    }
 }
 
-
-void Actuator::activate() {
-    is_active = true;
+void Actuator::turnOff() {
+    if (state) {
+        state = false;
+        operationalCycles++;
+    }
 }
 
-void Actuator::deactivate() {
-    is_active = false;
+bool Actuator::isOn() const {
+    return state;
 }
 
-bool Actuator::isActive() const {
-    return is_active;
+double Actuator::getPowerConsumption() const {
+    return powerConsumptionPerHour;
 }
+
+int Actuator::getOperationalCycles() const {
+    return operationalCycles;
+}
+
+double Actuator::getTTC() const {
+    return temperatureTransferCoefficient;
+}
+
+// FanCoil class implementation
+FanCoil::FanCoil(double power, double ttc) : Actuator(power, ttc) {}
+
+// Chiller class implementation
+Chiller::Chiller(double power, double ttc) : Actuator(power, ttc) {}
+
+// CoolingTower class implementation
+CoolingTower::CoolingTower(double power, double ttc) : Actuator(power, ttc) {}
+
